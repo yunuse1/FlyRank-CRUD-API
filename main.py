@@ -1,3 +1,6 @@
+from turtle import title
+from typing import Optional
+
 from fastapi import FastAPI, HTTPException, status, Response
 from pydantic import BaseModel
 
@@ -9,14 +12,16 @@ tasks = [
     {"id": 2, "title": "Task", "done": True},
     {"id": 3, "title": "Backend", "done": False}
 ]
+tasks_list = list(tasks)
 
 class Task(BaseModel):
     """
     Data model for a task, including its title, completion status, and optional ID.
     """
+    id: int = None
     title: str
     done: bool = False
-    id: int = None
+
 
 @app.get("/")
 async def root():
@@ -32,13 +37,6 @@ def check_health():
     """
     return { "status": "ok" }
 
-@app.get("/tasks")
-def get_all_tasks():
-    """
-    Endpoint to retrieve all tasks.
-    """
-    return tasks
-
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
     """
@@ -48,6 +46,42 @@ def get_task(task_id: int):
         if task["id"] == task_id:
             return task
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+@app.get("/tasks", response_model=list[Task])
+def search_tasks(search: Optional[str] = None, done: Optional[bool] = None):
+    """
+    Endpoint to search for tasks based on title and/or completion status.
+    """
+    filtered_tasks = tasks
+    if search is not None:
+        filtered_tasks = [task for task in filtered_tasks if search.lower() in task["title"].lower()]
+    if done is not None:
+        filtered_tasks = [task for task in filtered_tasks if task["done"] == done]
+    return filtered_tasks
+
+
+@app.get("/stats")
+def get_stats():
+    """
+    Endpoint to retrieve statistics about the tasks.
+    """
+    return {
+        "total_tasks": len(tasks),
+        "completed_tasks": len([task for task in tasks if task["done"]]),
+        "pending_tasks": len([task for task in tasks if not task["done"]])
+    }
+
+@app.post("/reset")
+def reset_tasks():
+    """
+    Endpoint to reset the list of tasks to its initial state.
+    """
+    global tasks
+    tasks = tasks_list.copy()
+    return { "message": "Tasks have been reset", "tasks": tasks }
+    
+
+
 
 @app.post("/tasks")
 def create_task(task: Task):
