@@ -1,4 +1,3 @@
-from turtle import title
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status, Response
@@ -18,7 +17,7 @@ class Task(BaseModel):
     """
     Data model for a task, including its title, completion status, and optional ID.
     """
-    id: int = None
+    id: int
     title: str
     done: bool = False
 
