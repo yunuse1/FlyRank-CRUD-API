@@ -134,18 +134,17 @@ def create_task(task_input: TaskCreate):
     """
     Endpoint to create a new task.
     """
+    query = "INSERT INTO tasks (title, done) VALUES (?, ?)"
     if not task_input.title.strip():
         raise HTTPException(status_code=400, detail="Title is required")
     
-    next_id = max([task["id"] for task in tasks]) + 1 if tasks else 1
-    new_task = {
-        "id": next_id,
-        "title": task_input.title,
-        "done": task_input.done
-    }
-    tasks.append(new_task)
-    return new_task
-
+    cursor_obj.execute(query, (task_input.title, task_input.done))
+    connection_obj.commit()
+    new_id = cursor_obj.lastrowid
+    
+    cursor_obj.execute("SELECT * FROM tasks WHERE id = ?", (new_id,))
+    return dict(cursor_obj.fetchone())    
+    
 @app.put("/tasks/{task_id}", response_model=Task)
 def update_task(task_id: int, task_input: TaskUpdate):
     """
