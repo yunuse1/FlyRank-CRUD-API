@@ -21,6 +21,20 @@ class Task(BaseModel):
     title: str
     done: bool = False
 
+class TaskCreate(BaseModel):
+    """
+    Data model for creating a task, requires a title and allows an optional done status.
+    """
+    title: str
+    done: bool = False
+
+class TaskUpdate(BaseModel):
+    """
+    Data model for updating a task, allowing optional updates to title and/or completion status.
+    """
+    title: Optional[str] = None
+    done: Optional[bool] = None
+
 
 @app.get("/")
 async def root():
@@ -82,39 +96,39 @@ def reset_tasks():
 
 
 
-@app.post("/tasks")
-def create_task(task: Task):
+@app.post("/tasks", response_model=Task, status_code=status.HTTP_201_CREATED)
+def create_task(task_input: TaskCreate):
     """
     Endpoint to create a new task.
     """
-    if not task.title.strip():
+    if not task_input.title.strip():
         raise HTTPException(status_code=400, detail="Title is required")
     
     next_id = max([task["id"] for task in tasks]) + 1 if tasks else 1
     new_task = {
         "id": next_id,
-        "title": task.title,
-        "done": task.done
+        "title": task_input.title,
+        "done": task_input.done
     }
     tasks.append(new_task)
     return new_task
 
-@app.put("/tasks/{task_id}")
-def update_task(task_id: int, task: Task):
+@app.put("/tasks/{task_id}", response_model=Task)
+def update_task(task_id: int, task_input: TaskUpdate):
     """
     Endpoint to update an existing task by its ID.
     """
 
-    if task.title is not None and not task.title.strip():
+    if task_input.title is not None and not task_input.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty or whitespaces only")
     
-    for index, item in enumerate(tasks):
-        if item["id"] is None:
-            raise HTTPException(status_code=400, detail="Task ID is required")
-        if item["id"] == task_id:
-            tasks[index]["title"] = task.title
-            tasks[index]["done"] = task.done
-            return tasks[index]
+    for task in tasks:
+        if task["id"] == task_id:
+            if task_input.title is not None:
+                task["title"] = task_input.title
+            if task_input.done is not None:
+                task["done"] = task_input.done
+            return task
     raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 @app.delete("/tasks/{task_id}")
