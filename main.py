@@ -8,8 +8,10 @@ app = FastAPI()
 
 DB_FILE = "tasks.db"
 
-connection_obj = sqlite3.connect(DB_FILE)
+connection_obj = sqlite3.connect(DB_FILE, check_same_thread=False)
+connection_obj.row_factory = sqlite3.Row
 cursor_obj = connection_obj.cursor()
+
 def init_db():
     cursor_obj.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
@@ -18,7 +20,17 @@ def init_db():
             done BOOLEAN NOT NULL DEFAULT 0
         )
     """)
+    
+    cursor_obj.execute("SELECT COUNT(*) FROM tasks")
+    count = cursor_obj.fetchone()[0]
+    
+    if count == 0:
+        cursor_obj.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", ("Hello", False))
+        cursor_obj.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", ("Task", True))
+        cursor_obj.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", ("Backend", False))
+        
     connection_obj.commit()
+
 init_db()
 
 tasks = [
@@ -27,6 +39,7 @@ tasks = [
     {"id": 3, "title": "Backend", "done": False}
 ]
 tasks_list = list(tasks)
+
 
 class Task(BaseModel):
     """
@@ -70,23 +83,31 @@ def get_task(task_id: int):
     """
     Endpoint to retrieve a specific task by its ID.
     """
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    cursor_obj.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    row = cursor_obj.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return dict(row)
 
 @app.get("/tasks", response_model=list[Task])
 def search_tasks(search: Optional[str] = None, done: Optional[bool] = None):
     """
     Endpoint to search for tasks based on title and/or completion status.
     """
-    filtered_tasks = tasks
+    query = "SELECT * FROM tasks WHERE 1=1"
+    params = []
     if search is not None:
-        filtered_tasks = [task for task in filtered_tasks if search.lower() in task["title"].lower()]
+        query += " AND title LIKE ?"
+        params.append(f"%{search}%")
     if done is not None:
-        filtered_tasks = [task for task in filtered_tasks if task["done"] == done]
-    return filtered_tasks
-
+        query += " AND done = ?"
+        params.append(done)
+        
+    cursor_obj.execute(query, params)
+    rows = cursor_obj.fetchall()
+    if not rows:
+        raise HTTPException(status_code=404, detail="No tasks found matching the criteria")
+    return [dict(row) for row in rows]
 
 @app.get("/stats")
 def get_stats():
@@ -107,9 +128,6 @@ def reset_tasks():
     global tasks
     tasks = tasks_list.copy()
     return { "message": "Tasks have been reset", "tasks": tasks }
-    
-
-
 
 @app.post("/tasks", response_model=Task, status_code=status.HTTP_201_CREATED)
 def create_task(task_input: TaskCreate):
@@ -133,7 +151,6 @@ def update_task(task_id: int, task_input: TaskUpdate):
     """
     Endpoint to update an existing task by its ID.
     """
-
     if task_input.title is not None and not task_input.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty or whitespaces only")
     
@@ -151,7 +168,6 @@ def delete_task(task_id: int):
     """
     Endpoint to delete a specific task by its ID.
     """
-
     for index, item in enumerate(tasks):
         if item["id"] == task_id:
             tasks.pop(index)
