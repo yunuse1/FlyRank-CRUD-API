@@ -114,10 +114,14 @@ def get_stats():
     """
     Endpoint to retrieve statistics about the tasks.
     """
+    cursor_obj.execute("SELECT COUNT(*) FROM tasks")
+    total = cursor_obj.fetchone()[0]
+    cursor_obj.execute("SELECT COUNT(*) FROM tasks WHERE done = 1")
+    completed = cursor_obj.fetchone()[0]
     return {
-        "total_tasks": len(tasks),
-        "completed_tasks": len([task for task in tasks if task["done"]]),
-        "pending_tasks": len([task for task in tasks if not task["done"]])
+        "total_tasks": total,
+        "completed_tasks": completed,
+        "pending_tasks": total - completed
     }
 
 @app.post("/reset")
@@ -125,9 +129,10 @@ def reset_tasks():
     """
     Endpoint to reset the list of tasks to its initial state.
     """
-    global tasks
-    tasks = tasks_list.copy()
-    return { "message": "Tasks have been reset", "tasks": tasks }
+    cursor_obj.execute("DELETE FROM tasks")
+    connection_obj.commit()
+    init_db()
+    return { "message": "Tasks have been reset" }
 
 @app.post("/tasks", response_model=Task, status_code=status.HTTP_201_CREATED)
 def create_task(task_input: TaskCreate):
@@ -153,22 +158,25 @@ def update_task(task_id: int, task_input: TaskUpdate):
     if task_input.title is not None and not task_input.title.strip():
         raise HTTPException(status_code=400, detail="Title cannot be empty or whitespaces only")
     
-    for task in tasks:
-        if task["id"] == task_id:
-            if task_input.title is not None:
-                task["title"] = task_input.title
-            if task_input.done is not None:
-                task["done"] = task_input.done
-            return task
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    query = "UPDATE tasks SET title = ?, done = ? WHERE id = ?"
+    cursor_obj.execute(query, (task_input.title, task_input.done, task_id))
+    connection_obj.commit()
+    
+    if cursor_obj.rowcount == 0:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    
+    cursor_obj.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+    return dict(cursor_obj.fetchone())
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
     """
     Endpoint to delete a specific task by its ID.
     """
-    for index, item in enumerate(tasks):
-        if item["id"] == task_id:
-            tasks.pop(index)
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    cursor_obj.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    connection_obj.commit()
+    
+    if cursor_obj.rowcount == 0:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
