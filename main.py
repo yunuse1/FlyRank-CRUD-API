@@ -2,9 +2,24 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status, Response
 from pydantic import BaseModel
-
+import sqlite3
 
 app = FastAPI()
+
+DB_FILE = "tasks.db"
+
+connection_obj = sqlite3.connect(DB_FILE)
+cursor_obj = connection_obj.cursor()
+def init_db():
+    cursor_obj.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            done BOOLEAN NOT NULL DEFAULT 0
+        )
+    """)
+    connection_obj.commit()
+init_db()
 
 tasks = [
     {"id": 1, "title": "Hello", "done": False},
