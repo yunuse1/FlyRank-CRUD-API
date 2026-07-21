@@ -1,16 +1,34 @@
 # FlyRank CRUD API
 
-A small FastAPI CRUD service for tasks. It exposes a root endpoint with basic app info, a health check, and task endpoints for listing, reading, creating, updating, and deleting in-memory task records.
+A small FastAPI CRUD service for tasks. It exposes a root endpoint with basic app info, a health check, and task endpoints for listing, reading, creating, updating, and deleting task records persisted in SQLite.
+
+## Why SQLite & Database Storage
+
+SQLite was chosen for this project because it is extremely lightweight, serverless, and stores the entire database as a single file. It is perfect for embedded persistence and rapid development without needing to maintain a separate database service.
+
+**Automatic Creation:** The database file is stored directly in the project's root directory. When you clone this repository and start the server for the first time, the application automatically initializes the database schema, creates the `tasks.db` file, and populates it with initial sample data if the database does not already exist.
 
 ## Install
 
+First, create and activate a virtual environment:
 ```bash
-pip install -r requirements.txt
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+Then install the required dependencies (FastAPI and Uvicorn):
+```bash
+pip install fastapi uvicorn
 ```
 
 ## Run
 
+Start the development server with live-reloading enabled:
 ```bash
+uvicorn main:app --reload
+# Or using the FastAPI CLI:
 fastapi dev main.py
 ```
 
@@ -47,6 +65,26 @@ content-type: application/json
 ## Swagger Screenshot
 
 ![Swagger UI](swagger-ui.png)
+
+## Inspecting the Database
+
+You can easily inspect the `tasks.db` file without writing code using tools like **DB Browser for SQLite** or the **SQLite Viewer** extension in VS Code.
+
+![Database Screenshot](db-screenshot.png)
+
+## Example SQL Queries Executed
+
+The application communicates with SQLite using raw SQL queries via Python's `sqlite3` module. Here are a few examples of queries running under the hood:
+
+**Fetching all completed tasks:**
+```sql
+SELECT * FROM tasks WHERE done = 1;
+```
+
+**Inserting a new task:**
+```sql
+INSERT INTO tasks (title, done) VALUES ('Review Pull Requests', 0);
+```
 
 ## 🤖 AI vs Me (Code Review & Comparison)
 

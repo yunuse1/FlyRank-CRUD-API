@@ -33,14 +33,6 @@ def init_db():
 
 init_db()
 
-tasks = [
-    {"id": 1, "title": "Hello", "done": False},
-    {"id": 2, "title": "Task", "done": True},
-    {"id": 3, "title": "Backend", "done": False}
-]
-tasks_list = list(tasks)
-
-
 class Task(BaseModel):
     """
     Data model for a task, including its title, completion status, and optional ID.
