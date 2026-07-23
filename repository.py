@@ -59,13 +59,12 @@ class PostgresTaskRepository:
         cur.close()
 
     def count_tasks(self):
-        cur = self.conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT COUNT(*) FROM tasks")
-        total = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM tasks WHERE done = true")
-        completed = cur.fetchone()[0]
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT COUNT(*) AS count FROM tasks")
+        total = cur.fetchone()["count"]
+        cur.execute("SELECT COUNT(*) AS count FROM tasks WHERE done = true")
+        completed = cur.fetchone()["count"]
         pending = total - completed
         cur.close()
-        return {"total_tasks": total, "completed_tasks": completed, "pending_tasks": pending} 
-
+        return {"total_tasks": total, "completed_tasks": completed, "pending_tasks": pending}
 

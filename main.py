@@ -1,9 +1,6 @@
-from fastapi import params
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status, Response
-from pydantic import BaseModel
-import sqlite3
 from repository import PostgresTaskRepository
 from models.task import Task, TaskCreate, TaskUpdate
 
@@ -101,4 +98,4 @@ def delete_task(task_id: int):
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
     repository.delete_task(task_id)
-    return { "message": f"Task {task_id} has been deleted" }
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

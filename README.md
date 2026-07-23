@@ -1,12 +1,6 @@
 # FlyRank CRUD API
 
-A small FastAPI CRUD service for tasks. It exposes a root endpoint with basic app info, a health check, and task endpoints for listing, reading, creating, updating, and deleting task records persisted in SQLite.
-
-## Why SQLite & Database Storage
-
-SQLite was chosen for this project because it is extremely lightweight, serverless, and stores the entire database as a single file. It is perfect for embedded persistence and rapid development without needing to maintain a separate database service.
-
-**Automatic Creation:** The database file is stored directly in the project's root directory. When you clone this repository and start the server for the first time, the application automatically initializes the database schema, creates the `tasks.db` file, and populates it with initial sample data if the database does not already exist.
+A small FastAPI CRUD service for tasks. It exposes a root endpoint with basic app info, a health check, and task endpoints for listing, reading, creating, updating, and deleting task records persisted in PostgreSQL via Docker.
 
 ## Install
 
@@ -20,7 +14,7 @@ source venv/bin/activate
 ```
 Then install the required dependencies (FastAPI and Uvicorn):
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 ```
 
 ## Run
@@ -85,6 +79,32 @@ SELECT * FROM tasks WHERE done = 1;
 ```sql
 INSERT INTO tasks (title, done) VALUES ('Review Pull Requests', 0);
 ```
+
+## Architectural Evolution: PostgreSQL & Docker (A3)
+
+While the project started with SQLite (A2) to quickly validate the idea, it has now evolved into a production-ready architecture using **PostgreSQL** and **Docker** (A3).
+
+**Important Note on Architecture:** Throughout this evolution, the route definitions and service logic in `main.py` remained **completely unchanged** (Routes unchanged). By abstracting the database logic into a repository pattern (`repository.py`), the underlying data store was seamlessly swapped from SQLite to PostgreSQL without altering a single endpoint in `main.py`.
+
+### Run (Docker & PostgreSQL)
+
+The application and its PostgreSQL database are fully containerized. You can start the entire stack with a single command:
+
+```bash
+docker compose up --build
+```
+
+> **Note on Environment Variables:** The `.env` file containing sensitive database credentials is included in `.gitignore` and is not tracked by Git. Use the provided `.env.example` file as a template to create your own `.env` file before running the project.
+
+### Proving Data Persistence (Kalıcılık Testi)
+
+One of the key features of the Dockerized PostgreSQL setup is data persistence using Docker Volumes (`postgres_data`). You can prove this by following these steps:
+
+1. **Start the containers:** Run `docker compose up -d --build`.
+2. **Add data:** Use the Swagger UI (`POST /tasks`) or curl to add a new task.
+3. **Stop the containers:** Run `docker compose down`. This completely stops and removes the FastAPI and PostgreSQL containers.
+4. **Restart the containers:** Run `docker compose up -d`.
+5. **Verify data:** Fetch the tasks (`GET /tasks`). You will see that the task you added in step 2 is still there! The data is safely preserved in the `postgres_data` volume and is not lost when the database container is destroyed.
 
 ## 🤖 AI vs Me (Code Review & Comparison)
 
